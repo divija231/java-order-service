@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: order-service-ns
+  labels:
+    app: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      initContainers:
+        - name: otel-agent
+          image: curlimages/curl:8.5.0
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /otel && \
+              curl -L -o /otel/opentelemetry-javaagent.jar \
+              https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v1.32.0/opentelemetry-javaagent.jar
+          volumeMounts:
+            - name: otel-agent
+              mountPath: /otel
+
+      containers:
+        - name: order-service
+          image: divija231/order-service:1.11
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/otel/opentelemetry-javaagent.jar"
+
+            - name: OTEL_SERVICE_NAME
+              value: order-service
+
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=order-service,service.namespace=order-service-ns"
+
+            # OTLP → OTEL Collector (HTTP)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.order-service-ns.svc.cluster.local:4318"
+
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              value: "true"
+
+            # Enable telemetry
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+
+            - name: OTEL_METRICS_EXPORTER
+              value: otlp
+
+            - name: OTEL_LOGS_EXPORTER
+              value: otlp
+
+            # Metrics export every 10 seconds
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "10000"
+
+            # JVM runtime metrics
+            - name: OTEL_JAVAAGENT_EXTENSIONS
+              value: runtime-metrics
+            - name: OTEL_METRICS_EXEMPLAR_FILTER
+              value: "trace_based"
+          volumeMounts:
+            - name: otel-agent
+              mountPath: /otel
+
+      volumes:
+        - name: otel-agent
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-svc
+  namespace: order-service-ns
+spec:
+  type: NodePort
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 31996
+

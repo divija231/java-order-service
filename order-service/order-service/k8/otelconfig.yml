@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: order-service-ns
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          http:
+          grpc:
+
+    processors:
+      batch:
+
+    exporters:
+      logging:
+        verbosity: detailed
+
+      otlp:
+        endpoint: tempo:4317
+        tls:
+          insecure: true
+
+      prometheus:
+        endpoint: '0.0.0.0:8889'
+        enable_open_metrics: true
+        add_metric_suffixes: false
+      loki:
+        endpoint: "http://loki:3100/loki/api/v1/push"
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [loki]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp, logging]
