@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dataprepper
+  namespace: order-service-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dataprepper
+  template:
+    metadata:
+      labels:
+        app: dataprepper
+    spec:
+      containers:
+        - name: dataprepper
+          image: opensearchproject/data-prepper:2.6.0
+          ports:
+            - containerPort: 21890
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/data-prepper/pipelines
+      volumes:
+        - name: config
+          configMap:
+            name: dataprepper-config
+

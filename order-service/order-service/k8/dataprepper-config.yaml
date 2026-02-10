@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dataprepper-config
+  namespace: order-service-ns
+data:
+  pipelines.yaml: |
+    log-pipeline:
+      source:
+        otel_logs_source:
+          port: 21890
+          ssl: false
+      processor:
+        - date:
+            from_time_received: true
+            destination: "@timestamp"
+        - rename_keys:
+            entries:
+              - from_key: "resource.attributes.service@name"
+                to_key: "service_name"
+      sink:
+        - opensearch:
+            hosts: ["http://opensearch-svc:9200"]
+            index: "otel-order-logs-%{yyyy.MM.dd}"
+

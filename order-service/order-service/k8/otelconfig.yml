@@ -27,14 +27,18 @@ data:
         endpoint: '0.0.0.0:8889'
         enable_open_metrics: true
         add_metric_suffixes: false
-      loki:
-        endpoint: "http://loki:3100/loki/api/v1/push"
+          #loki:
+          #endpoint: "http://loki:3100/loki/api/v1/push"
+      otlp/dataprepper:
+        endpoint: dataprepper:21890
+        tls:
+          insecure: true
     service:
       pipelines:
         logs:
           receivers: [otlp]
           processors: [batch]
-          exporters: [loki]
+          exporters: [otlp/dataprepper, logging]
         metrics:
           receivers: [otlp]
           processors: [batch]
