@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: order-service-ns
+data:
+  logstash.conf: |
+    input {
+      http {
+        port => 5044
+      }
+    }
+
+    filter {
+      json {
+        source => "message"
+      }
+
+      grok {
+        match => { "log" => "%{DATA}\s%{DATA}\s%{TIMESTAMP_ISO8601:event_time}\s%{LOGLEVEL:loglevel}\s\[trace_id=%{DATA:traceId}\]\s\[span_id=%{DATA:spanId}\]\s\[%{DATA:service_name}\]\s%{GREEDYDATA:log_message}" }
+      }
+
+      mutate {
+        remove_field => [ "message" ]
+      }
+    }
+
+    output {
+      opensearch {
+        hosts => ["http://opensearch-svc:9200"]
+        index => "java-app-logs-%{+YYYY.MM.dd}"
+        ssl_certificate_verification => false
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: order-service-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+      - name: logstash
+        image: opensearchproject/logstash-oss-with-opensearch-output-plugin:7.16.3
+        ports:
+        - containerPort: 5044
+        volumeMounts:
+        - name: config-volume
+          mountPath: /usr/share/logstash/pipeline/
+      volumes:
+      - name: config-volume
+        configMap:
+          name: logstash-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash-service
+  namespace: order-service-ns
+spec:
+  selector:
+    app: logstash
+  ports:
+  - protocol: TCP
+    port: 5044
+    targetPort: 5044

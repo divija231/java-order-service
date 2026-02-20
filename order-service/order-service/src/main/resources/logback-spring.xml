@@ -1,14 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+
+    <!-- Include Spring Boot defaults -->
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-    <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
+
+    <!-- Single-line console appender with trace/span IDs -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+%d{yyyy-MM-dd'T'HH:mm:ss.SSSX} %-5level [trace_id=%X{trace_id:-}] [span_id=%X{span_id:-}] [%thread] %logger{36} - %msg%n
+            </pattern>
+            <immediateFlush>true</immediateFlush>
+        </encoder>
+    </appender>
+
+    <!-- OPTIONAL: OpenTelemetry appender if you want OTLP logs (can remove if not needed) -->
+    <!--
     <appender name="OPEN_TELEMETRY"
               class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
         <captureExperimentalAttributes>true</captureExperimentalAttributes>
         <captureKeyValuePairAttributes>true</captureKeyValuePairAttributes>
     </appender>
+    -->
+
+    <!-- Root logger -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="OPEN_TELEMETRY"/>
+        <!-- <appender-ref ref="OPEN_TELEMETRY"/> -->
     </root>
+
 </configuration>
+
